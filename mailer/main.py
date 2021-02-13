@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from logging import getLogger
 from operator import attrgetter
-from random import shuffle
+from random import Random
 from smtplib import SMTP
-from typing import List, Type
+from typing import List, Optional
 
 from requests import get
 
@@ -78,13 +78,20 @@ class ArticleFetcher:
 
 
 class MessageFormatter:
-    def __init__(self, articles: List[Article]):
+    def __init__(self, random: Random) -> None:
+        self._random = random
+        self._articles: Optional[List[Article]] = None
+
+    def set_articles(self, articles: List[Article]) -> None:
         self._articles = articles
 
     def format(self, subscriber: Subscriber) -> str:
+        if self._articles is None:
+            raise NotImplementedError("Formatter needs articles to work!")
+
         articles = self._articles.copy()
         if subscriber.ordering == "random":
-            shuffle(articles)
+            self._random.shuffle(articles)
         else:
             articles.sort(key=attrgetter(subscriber.ordering))
 
@@ -122,22 +129,22 @@ class NewsletterMailer:
         self,
         article_fetcher: ArticleFetcher,
         subscriber_repo: SubscriberRepository,
-        message_formatter_class: Type[MessageFormatter],
+        message_formatter: MessageFormatter,
         message_sender: EmailSender,
     ):
         self._article_fetcher = article_fetcher
         self._subscriber_repo = subscriber_repo
-        self._message_formatter_class = message_formatter_class
+        self._message_formatter = message_formatter
         self._message_sender = message_sender
 
     def run(self) -> None:
         articles = self._article_fetcher.fetch()
-        article_formatter = self._message_formatter_class(articles)
+        self._message_formatter.set_articles(articles)
 
         for subscriber in self._subscriber_repo.list():
             if subscriber.is_sent_today:
                 logger.info("Sending newsletter to %s", subscriber.email)
-                formatted_articles = article_formatter.format(subscriber)
+                formatted_articles = self._message_formatter.format(subscriber)
 
                 self._message_sender.send(subscriber, formatted_articles)
             else:
@@ -151,6 +158,6 @@ if __name__ == "__main__":
         NewsletterMailer(
             article_fetcher=ArticleFetcher(get),
             subscriber_repo=SubscriberRepository("data/subscribers.json"),
-            message_formatter_class=MessageFormatter,
+            message_formatter=MessageFormatter(Random(datetime.now())),
             message_sender=EmailSender(smtp),
         ).run()

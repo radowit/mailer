@@ -1,8 +1,9 @@
 # pylint: disable=redefined-outer-name,line-too-long,import-outside-toplevel
 import json
 import logging
-from unittest.mock import Mock, patch
+from random import Random
 from tempfile import mkstemp
+from unittest.mock import Mock
 
 import pytest
 from factory import Factory, Faker
@@ -47,14 +48,6 @@ class ArticleFactory(Factory):
             launches=article.launches,
             events=article.events,
         )
-
-
-@pytest.fixture
-def shuffle_mock():
-    def _shuffle(alist):
-        alist.sort(key=lambda a: a.url)
-
-    return _shuffle
 
 
 def test_article_from_api():
@@ -152,10 +145,10 @@ def test_article_fetcher():
     (
         ("title", [1, 0, 2]),
         ("published_at", [2, 0, 1]),
-        ("random", [0, 2, 1]),
+        ("random", [2, 1, 0]),
     ),
 )
-def test_message_formatter_format_title(ordering, article_order, shuffle_mock):
+def test_message_formatter_format_title(ordering, article_order):
     articles = [
         ArticleFactory.build(
             title="Report: NASA’s only realistic path for humans on Mars is nuclear",
@@ -173,11 +166,11 @@ def test_message_formatter_format_title(ordering, article_order, shuffle_mock):
             published_at="2021-02-12T20:19:00.000Z",
         ),
     ]
-    formatter = MessageFormatter(articles)
+    formatter = MessageFormatter(Random(100))
+    formatter.set_articles(articles)
     subscriber = Subscriber(week_day=5, ordering=ordering, email="mark@house.com")
 
-    with patch("mailer.main.shuffle", shuffle_mock):
-        formatted_message = formatter.format(subscriber)
+    formatted_message = formatter.format(subscriber)
 
     assert (
         formatted_message
@@ -217,22 +210,20 @@ def test_newsletter_mailer_send(capsys, caplog):
     subscriber1 = Mock(email="test1@email.com", is_sent_today=True)
     subscriber2 = Mock(email="test2@email.com", is_sent_today=False)
     subscriber_repo.list.return_value = [subscriber1, subscriber2]
-    message_formatter_class = Mock()
+    message_formatter = Mock()
     message_sender = Mock()
 
     NewsletterMailer(
         article_fetcher=article_fetcher,
         subscriber_repo=subscriber_repo,
-        message_formatter_class=message_formatter_class,
+        message_formatter=message_formatter,
         message_sender=message_sender,
     ).run()
 
-    message_formatter_class().format.assert_called_once()
-    message_formatter_class().format.assert_called_with(subscriber1)
+    message_formatter.format.assert_called_once()
+    message_formatter.format.assert_called_with(subscriber1)
     message_sender.send.assert_called_once()
-    message_sender.send.assert_called_with(
-        subscriber1, message_formatter_class().format()
-    )
+    message_sender.send.assert_called_with(subscriber1, message_formatter.format())
     assert capsys.readouterr().out == "All messages sent!\n"
     assert len(caplog.records) == 2
     assert caplog.records[0].msg == "Sending newsletter to %s"
