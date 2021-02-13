@@ -134,9 +134,14 @@ class NewsletterMailer:
 
         for subscriber in self._subscriber_repo.list():
             if subscriber.is_sent_today:
+                logger.info("Sending newsletter to %s", subscriber.email)
                 formatted_articles = article_formatter.format(subscriber)
 
                 self._message_sender.send(subscriber, formatted_articles)
+            else:
+                logger.info("Skipping sending newsletter to %s", subscriber.email)
+
+        print("All messages sent!")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 # pylint: disable=redefined-outer-name,line-too-long,import-outside-toplevel
 import json
+import logging
 from shutil import move
 from unittest.mock import Mock, patch
 
@@ -221,14 +222,13 @@ def test_email_sender_send():
     )
 
 
-def test_newsletter_mailer_send():
+def test_newsletter_mailer_send(capsys, caplog):
+    caplog.set_level(logging.DEBUG)
     article_fetcher = Mock()
     subscriber_repo = Mock()
-    subscriber = Mock(is_sent_today=True)
-    subscriber_repo.list.return_value = [
-        subscriber,
-        Mock(is_sent_today=False),
-    ]
+    subscriber1 = Mock(email="test1@email.com", is_sent_today=True)
+    subscriber2 = Mock(email="test2@email.com", is_sent_today=False)
+    subscriber_repo.list.return_value = [subscriber1, subscriber2]
     message_formatter_class = Mock()
     message_sender = Mock()
 
@@ -240,8 +240,14 @@ def test_newsletter_mailer_send():
     ).run()
 
     message_formatter_class().format.assert_called_once()
-    message_formatter_class().format.assert_called_with(subscriber)
+    message_formatter_class().format.assert_called_with(subscriber1)
     message_sender.send.assert_called_once()
     message_sender.send.assert_called_with(
-        subscriber, message_formatter_class().format()
+        subscriber1, message_formatter_class().format()
     )
+    assert capsys.readouterr().out == "All messages sent!\n"
+    assert len(caplog.records) == 2
+    assert caplog.records[0].msg == "Sending newsletter to %s"
+    assert caplog.records[0].args == ("test1@email.com",)
+    assert caplog.records[1].msg == "Skipping sending newsletter to %s"
+    assert caplog.records[1].args == ("test2@email.com",)
