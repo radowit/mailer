@@ -56,9 +56,11 @@ class Subscriber:
 
 
 class SubscriberRepository:
-    @staticmethod
-    def list():
-        with open("data/subscribers.json") as subscribers_file:
+    def __init__(self, filename: str) -> None:
+        self._filename = filename
+
+    def list(self):
+        with open(self._filename) as subscribers_file:
             return [Subscriber(**s) for s in json.load(subscribers_file)]
 
 
@@ -148,7 +150,7 @@ if __name__ == "__main__":
     with SMTP(host="localhost", port=1025) as smtp:
         NewsletterMailer(
             article_fetcher=ArticleFetcher(get),
-            subscriber_repo=SubscriberRepository(),
+            subscriber_repo=SubscriberRepository("data/subscribers.json"),
             message_formatter_class=MessageFormatter,
             message_sender=EmailSender(smtp),
         ).run()

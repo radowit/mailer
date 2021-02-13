@@ -1,8 +1,8 @@
 # pylint: disable=redefined-outer-name,line-too-long,import-outside-toplevel
 import json
 import logging
-from shutil import move
 from unittest.mock import Mock, patch
+from tempfile import mkstemp
 
 import pytest
 from factory import Factory, Faker
@@ -50,33 +50,6 @@ class ArticleFactory(Factory):
 
 
 @pytest.fixture
-@pytest.mark.freeze_time("2021-02-13")
-def data_file_mock():
-    move("data/subscribers.json", "data/prod_subscribers.json")
-    subscribers = [
-        {
-            "week_day": 5,
-            "ordering": "published_at",
-            "email": "mark@house.com",
-        },
-        {
-            "week_day": 5,
-            "ordering": "random",
-            "email": "mark@black.com",
-        },
-        {
-            "week_day": 2,
-            "ordering": "random",
-            "email": "mark@roberts.com",
-        },
-    ]
-    with open("data/subscribers.json", "w+") as subscribers_file:
-        subscribers_file.write(json.dumps(subscribers))
-    yield subscribers
-    move("data/prod_subscribers.json", "data/subscribers.json")
-
-
-@pytest.fixture
 def shuffle_mock():
     def _shuffle(alist):
         alist.sort(key=lambda a: a.url)
@@ -115,18 +88,33 @@ def test_subscriber_is_sent_today_true(week_day_diff, expcected):
     assert subscriber.is_sent_today is expcected
 
 
-def test_subscriber_repository(data_file_mock):
-    del data_file_mock
+def test_subscriber_repository():
+    subscriber_dicts = [
+        {
+            "week_day": 5,
+            "ordering": "published_at",
+            "email": "mark@house.com",
+        },
+        {
+            "week_day": 5,
+            "ordering": "random",
+            "email": "mark@black.com",
+        },
+        {
+            "week_day": 2,
+            "ordering": "random",
+            "email": "mark@roberts.com",
+        },
+    ]
+    _, filename = mkstemp()
+    with open(filename, "w+") as subscribers_file:
+        subscribers_file.write(json.dumps(subscriber_dicts))
 
-    repo = SubscriberRepository()
+    repo = SubscriberRepository(filename)
 
     subscribers = repo.list()
 
-    assert subscribers == [
-        Subscriber(week_day=5, ordering="published_at", email="mark@house.com"),
-        Subscriber(week_day=5, ordering="random", email="mark@black.com"),
-        Subscriber(week_day=2, ordering="random", email="mark@roberts.com"),
-    ]
+    assert subscribers == [Subscriber(**s) for s in subscriber_dicts]
 
 
 def test_article_fetcher():
