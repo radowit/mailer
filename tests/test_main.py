@@ -4,7 +4,7 @@ from shutil import move
 from unittest.mock import Mock, patch
 
 import pytest
-from factory import Factory
+from factory import Factory, Faker
 
 from mailer.main import (
     Article,
@@ -21,18 +21,18 @@ class ArticleFactory(Factory):
     class Meta:
         model = Article
 
-    article_id = "6026ec1b3a4653001c012105"
-    image_url = "https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg"
-    news_site = "Arstechnica"
-    summary = '"It\'s the kind of technology challenge that NASA was built."'
-    updated_at = "2021-02-12T20:59:08.034Z"
-    featured = False
+    article_id = Faker("sha1")
+    image_url = Faker("image_url")
+    news_site = Faker("word")
+    summary = Faker("sentence")
+    updated_at = Faker("date")
+    featured = Faker("boolean")
     launches = []
     events = []
 
     @classmethod
-    def build_as_api_dict(cls, **kwargs):
-        article = cls.build(**kwargs)
+    def build_as_api_dict(cls, article=None, **kwargs):
+        article = article or cls.build(**kwargs)
         return dict(
             id=article.article_id,
             title=article.title,
@@ -84,19 +84,14 @@ def shuffle_mock():
 
 
 def test_article_from_api():
-    article = Article.from_api(
-        ArticleFactory.build_as_api_dict(
-            published_at="2021-02-12T20:56:59.000Z",
-            title="Report: NASA’s only realistic path for humans on Mars is nuclear",
-            url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-        )
-    )
-
-    assert article == ArticleFactory.build(
+    article_obj = ArticleFactory.build(
         published_at="2021-02-12T20:56:59.000Z",
         title="Report: NASA’s only realistic path for humans on Mars is nuclear",
         url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
     )
+    article = Article.from_api(ArticleFactory.build_as_api_dict(article_obj))
+
+    assert article == article_obj
 
 
 @pytest.mark.freeze_time("2021-02-13")
@@ -134,46 +129,33 @@ def test_subscriber_repository(data_file_mock):
 
 
 def test_article_fetcher():
-    get_mock = Mock()
-    get_mock().json.return_value = [
-        ArticleFactory.build_as_api_dict(
+    article_objs = [
+        ArticleFactory.build(
             title="Report: NASA’s only realistic path for humans on Mars is nuclear",
             url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
             published_at="2021-02-12T20:56:59.000Z",
         ),
-        ArticleFactory.build_as_api_dict(
+        ArticleFactory.build(
             title="Despite its small size, Space Force plans",
             url="https://spacenews.com/despite-its-small-size-space-force-plans/",
             published_at="2021-02-12T22:59:04.000Z",
         ),
-        ArticleFactory.build_as_api_dict(
+        ArticleFactory.build(
             title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
             url="https://mars.nasa.gov/news/8859/",
             published_at="2021-02-12T20:19:00.000Z",
         ),
+    ]
+    get_mock = Mock()
+    get_mock().json.return_value = [
+        ArticleFactory.build_as_api_dict(ao) for ao in article_objs
     ]
 
     fetcher = ArticleFetcher(get_mock)
 
     articles = fetcher.fetch()
 
-    assert articles == [
-        ArticleFactory.build(
-            title="Report: NASA’s only realistic path for humans on Mars is nuclear",
-            url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-            published_at="2021-02-12T20:56:59.000Z",
-        ),
-        ArticleFactory.build(
-            title="Despite its small size, Space Force plans",
-            url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-            published_at="2021-02-12T22:59:04.000Z",
-        ),
-        ArticleFactory.build(
-            title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
-            url="https://mars.nasa.gov/news/8859/",
-            published_at="2021-02-12T20:19:00.000Z",
-        ),
-    ]
+    assert articles == article_objs
 
 
 @pytest.mark.parametrize(
