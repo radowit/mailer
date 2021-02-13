@@ -1,7 +1,6 @@
 # pylint: disable=redefined-outer-name,line-too-long,import-outside-toplevel
 import json
 from dataclasses import asdict
-from datetime import datetime
 from shutil import move
 from unittest.mock import Mock, patch
 
@@ -19,22 +18,22 @@ from mailer.main import (
 
 
 @pytest.fixture
+@pytest.mark.freeze_time("2021-02-13")
 def data_file_mock():
-    now = datetime.now()
     move("data/subscribers.json", "data/prod_subscribers.json")
     subscribers = [
         {
-            "week_day": now.weekday(),
+            "week_day": 5,
             "ordering": "published_at",
             "email": "mark@house.com",
         },
         {
-            "week_day": now.weekday(),
+            "week_day": 5,
             "ordering": "random",
             "email": "mark@black.com",
         },
         {
-            "week_day": 7 - now.weekday(),
+            "week_day": 2,
             "ordering": "random",
             "email": "mark@roberts.com",
         },
@@ -85,18 +84,19 @@ def test_article_from_api():
     }
 
 
+@pytest.mark.freeze_time("2021-02-13")
 @pytest.mark.parametrize(
-    "week_day,expcected",
+    "week_day_diff,expcected",
     (
-        (datetime.now().weekday(), True),
-        (7 - datetime.now().weekday(), False),
-        (17, False),
-        (7, True),
+        (0, True),
+        (-5, False),
+        (10, False),
+        (2, True),
     ),
 )
-def test_subscriber_is_sent_today_true(week_day, expcected):
+def test_subscriber_is_sent_today_true(week_day_diff, expcected):
     subscriber = Subscriber(
-        week_day=week_day,
+        week_day=5 + week_day_diff,
         ordering="random",
         email="random@amber.com",
     )
