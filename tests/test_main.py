@@ -1,10 +1,10 @@
 # pylint: disable=redefined-outer-name,line-too-long,import-outside-toplevel
 import json
-from dataclasses import asdict
 from shutil import move
 from unittest.mock import Mock, patch
 
 import pytest
+from factory import Factory
 
 from mailer.main import (
     Article,
@@ -15,6 +15,37 @@ from mailer.main import (
     Subscriber,
     SubscriberRepository,
 )
+
+
+class ArticleFactory(Factory):
+    class Meta:
+        model = Article
+
+    article_id = "6026ec1b3a4653001c012105"
+    image_url = "https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg"
+    news_site = "Arstechnica"
+    summary = '"It\'s the kind of technology challenge that NASA was built."'
+    updated_at = "2021-02-12T20:59:08.034Z"
+    featured = False
+    launches = []
+    events = []
+
+    @classmethod
+    def build_as_api_dict(cls, **kwargs):
+        article = cls.build(**kwargs)
+        return dict(
+            id=article.article_id,
+            title=article.title,
+            url=article.url,
+            imageUrl=article.image_url,
+            newsSite=article.news_site,
+            summary=article.summary,
+            publishedAt=article.published_at,
+            updatedAt=article.updated_at,
+            featured=article.featured,
+            launches=article.launches,
+            events=article.events,
+        )
 
 
 @pytest.fixture
@@ -47,41 +78,25 @@ def data_file_mock():
 @pytest.fixture
 def shuffle_mock():
     def _shuffle(alist):
-        alist.sort(key=lambda a: a.summary)
+        alist.sort(key=lambda a: a.url)
 
     return _shuffle
 
 
 def test_article_from_api():
     article = Article.from_api(
-        {
-            "events": [],
-            "featured": False,
-            "id": "6026ec1b3a4653001c012105",
-            "imageUrl": "https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-            "launches": [],
-            "newsSite": "Arstechnica",
-            "publishedAt": "2021-02-12T20:56:59.000Z",
-            "summary": '"It\'s the kind of technology challenge that NASA was built."',
-            "title": "Report: NASA’s only realistic path for humans on Mars is nuclear",
-            "updatedAt": "2021-02-12T20:59:08.034Z",
-            "url": "https://arstechnica.com/science/2021/02/report-nasas-only-/",
-        }
+        ArticleFactory.build_as_api_dict(
+            published_at="2021-02-12T20:56:59.000Z",
+            title="Report: NASA’s only realistic path for humans on Mars is nuclear",
+            url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
+        )
     )
 
-    assert asdict(article) == {
-        "article_id": "6026ec1b3a4653001c012105",
-        "events": [],
-        "featured": False,
-        "image_url": "https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-        "launches": [],
-        "news_site": "Arstechnica",
-        "published_at": "2021-02-12T20:56:59.000Z",
-        "summary": '"It\'s the kind of technology challenge that NASA was built."',
-        "title": "Report: NASA’s only realistic path for humans on Mars is nuclear",
-        "updated_at": "2021-02-12T20:59:08.034Z",
-        "url": "https://arstechnica.com/science/2021/02/report-nasas-only-/",
-    }
+    assert article == ArticleFactory.build(
+        published_at="2021-02-12T20:56:59.000Z",
+        title="Report: NASA’s only realistic path for humans on Mars is nuclear",
+        url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
+    )
 
 
 @pytest.mark.freeze_time("2021-02-13")
@@ -121,45 +136,21 @@ def test_subscriber_repository(data_file_mock):
 def test_article_fetcher():
     get_mock = Mock()
     get_mock().json.return_value = [
-        {
-            "id": "6026ec1b3a4653001c012105",
-            "title": "Report: NASA’s only realistic path for humans on Mars is nuclear",
-            "url": "https://arstechnica.com/science/2021/02/report-nasas-only-/",
-            "imageUrl": "https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-            "newsSite": "Arstechnica",
-            "summary": '"It\'s the kind of technology challenge that NASA was built."',
-            "publishedAt": "2021-02-12T20:56:59.000Z",
-            "updatedAt": "2021-02-12T20:59:08.034Z",
-            "featured": False,
-            "launches": [],
-            "events": [],
-        },
-        {
-            "id": "602708383a4653001c012106",
-            "title": "Despite its small size, Space Force plans",
-            "url": "https://spacenews.com/despite-its-small-size-space-force-plans/",
-            "imageUrl": "https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-            "newsSite": "SpaceNews",
-            "summary": "The Space Force is by far the smallest branch of the U.S. .",
-            "publishedAt": "2021-02-12T22:59:04.000Z",
-            "updatedAt": "2021-02-12T22:59:04.249Z",
-            "featured": False,
-            "launches": [],
-            "events": [],
-        },
-        {
-            "id": "6026e2bc3a4653001c012104",
-            "title": "Sensors Prepare to Collect Data as Perseverance Enters Mars",
-            "url": "https://mars.nasa.gov/news/8859/",
-            "imageUrl": "https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-            "newsSite": "NASA",
-            "summary": "Technology will collect critical data about the harsh entry",
-            "publishedAt": "2021-02-12T20:19:00.000Z",
-            "updatedAt": "2021-02-12T20:19:08.638Z",
-            "featured": False,
-            "launches": [],
-            "events": [],
-        },
+        ArticleFactory.build_as_api_dict(
+            title="Report: NASA’s only realistic path for humans on Mars is nuclear",
+            url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
+            published_at="2021-02-12T20:56:59.000Z",
+        ),
+        ArticleFactory.build_as_api_dict(
+            title="Despite its small size, Space Force plans",
+            url="https://spacenews.com/despite-its-small-size-space-force-plans/",
+            published_at="2021-02-12T22:59:04.000Z",
+        ),
+        ArticleFactory.build_as_api_dict(
+            title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
+            url="https://mars.nasa.gov/news/8859/",
+            published_at="2021-02-12T20:19:00.000Z",
+        ),
     ]
 
     fetcher = ArticleFetcher(get_mock)
@@ -167,44 +158,20 @@ def test_article_fetcher():
     articles = fetcher.fetch()
 
     assert articles == [
-        Article(
-            article_id="6026ec1b3a4653001c012105",
+        ArticleFactory.build(
             title="Report: NASA’s only realistic path for humans on Mars is nuclear",
             url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-            image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-            news_site="Arstechnica",
-            summary='"It\'s the kind of technology challenge that NASA was built."',
             published_at="2021-02-12T20:56:59.000Z",
-            updated_at="2021-02-12T20:59:08.034Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
-        Article(
-            article_id="602708383a4653001c012106",
+        ArticleFactory.build(
             title="Despite its small size, Space Force plans",
             url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-            image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-            news_site="SpaceNews",
-            summary="The Space Force is by far the smallest branch of the U.S. .",
             published_at="2021-02-12T22:59:04.000Z",
-            updated_at="2021-02-12T22:59:04.249Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
-        Article(
-            article_id="6026e2bc3a4653001c012104",
+        ArticleFactory.build(
             title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
             url="https://mars.nasa.gov/news/8859/",
-            image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-            news_site="NASA",
-            summary="Technology will collect critical data about the harsh entry",
             published_at="2021-02-12T20:19:00.000Z",
-            updated_at="2021-02-12T20:19:08.638Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
     ]
 
@@ -219,44 +186,20 @@ def test_article_fetcher():
 )
 def test_message_formatter_format_title(ordering, article_order, shuffle_mock):
     articles = [
-        Article(
-            article_id="6026ec1b3a4653001c012105",
+        ArticleFactory.build(
             title="Report: NASA’s only realistic path for humans on Mars is nuclear",
             url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-            image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-            news_site="Arstechnica",
-            summary='"It\'s the kind of technology challenge that NASA was built."',
             published_at="2021-02-12T20:56:59.000Z",
-            updated_at="2021-02-12T20:59:08.034Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
-        Article(
-            article_id="602708383a4653001c012106",
+        ArticleFactory.build(
             title="Despite its small size, Space Force plans",
             url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-            image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-            news_site="SpaceNews",
-            summary="The Space Force is by far the smallest branch of the U.S. .",
             published_at="2021-02-12T22:59:04.000Z",
-            updated_at="2021-02-12T22:59:04.249Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
-        Article(
-            article_id="6026e2bc3a4653001c012104",
+        ArticleFactory.build(
             title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
             url="https://mars.nasa.gov/news/8859/",
-            image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-            news_site="NASA",
-            summary="Technology will collect critical data about the harsh entry",
             published_at="2021-02-12T20:19:00.000Z",
-            updated_at="2021-02-12T20:19:08.638Z",
-            featured=False,
-            launches=[],
-            events=[],
         ),
     ]
     formatter = MessageFormatter(articles)
