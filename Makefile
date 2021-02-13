@@ -1,5 +1,5 @@
 test:
-	pytest tests --cov
+	pytest -svvx tests --cov
 
 lint:
 	mypy mailer
