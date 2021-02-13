@@ -85,26 +85,23 @@ def test_article_from_api():
     }
 
 
-def test_subscriber_is_sent_today_true():
-    now = datetime.now()
+@pytest.mark.parametrize(
+    "week_day,expcected",
+    (
+        (datetime.now().weekday(), True),
+        (7 - datetime.now().weekday(), False),
+        (17, False),
+        (7, True),
+    ),
+)
+def test_subscriber_is_sent_today_true(week_day, expcected):
     subscriber = Subscriber(
-        week_day=now.weekday(),
+        week_day=week_day,
         ordering="random",
         email="random@amber.com",
     )
 
-    assert subscriber.is_sent_today
-
-
-def test_subscriber_is_sent_today_false():
-    now = datetime.now()
-    subscriber = Subscriber(
-        week_day=7 - now.weekday(),
-        ordering="random",
-        email="random@amber.com",
-    )
-
-    assert not subscriber.is_sent_today
+    assert subscriber.is_sent_today is expcected
 
 
 def test_subscriber_repository(data_file_mock):
@@ -212,194 +209,71 @@ def test_article_fetcher():
     ]
 
 
-def test_message_formatter_format_title():
-    formatter = MessageFormatter(
-        [
-            Article(
-                article_id="6026ec1b3a4653001c012105",
-                title="Report: NASA’s only realistic path for humans on Mars is nuclear",
-                url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-                image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-                news_site="Arstechnica",
-                summary='"It\'s the kind of technology challenge that NASA was built."',
-                published_at="2021-02-12T20:56:59.000Z",
-                updated_at="2021-02-12T20:59:08.034Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="602708383a4653001c012106",
-                title="Despite its small size, Space Force plans",
-                url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-                image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-                news_site="SpaceNews",
-                summary="The Space Force is by far the smallest branch of the U.S. .",
-                published_at="2021-02-12T22:59:04.000Z",
-                updated_at="2021-02-12T22:59:04.249Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="6026e2bc3a4653001c012104",
-                title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
-                url="https://mars.nasa.gov/news/8859/",
-                image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-                news_site="NASA",
-                summary="Technology will collect critical data about the harsh entry",
-                published_at="2021-02-12T20:19:00.000Z",
-                updated_at="2021-02-12T20:19:08.638Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-        ]
-    )
-    subscriber = Subscriber(week_day=5, ordering="title", email="mark@house.com")
-
-    formatted_message = formatter.format(subscriber)
-
-    assert (
-        formatted_message
-        == """
-Hello!
-Here are your cool space news!
-
-Despite its small size, Space Force plans (https://spacenews.com/despite-its-small-size-space-force-plans/) at 2021-02-12T22:59:04.000Z
-Report: NASA’s only realistic path for humans on Mars is nuclear (https://arstechnica.com/science/2021/02/report-nasas-only-/) at 2021-02-12T20:56:59.000Z
-Sensors Prepare to Collect Data as Perseverance Enters Mars (https://mars.nasa.gov/news/8859/) at 2021-02-12T20:19:00.000Z
-
-Sincerly,
-
-your Mailman!
-"""
-    )
-
-
-def test_message_formatter_format_published_at():
-    formatter = MessageFormatter(
-        [
-            Article(
-                article_id="6026ec1b3a4653001c012105",
-                title="Report: NASA’s only realistic path for humans on Mars is nuclear",
-                url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-                image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-                news_site="Arstechnica",
-                summary='"It\'s the kind of technology challenge that NASA was built."',
-                published_at="2021-02-12T20:56:59.000Z",
-                updated_at="2021-02-12T20:59:08.034Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="602708383a4653001c012106",
-                title="Despite its small size, Space Force plans",
-                url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-                image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-                news_site="SpaceNews",
-                summary="The Space Force is by far the smallest branch of the U.S. .",
-                published_at="2021-02-12T22:59:04.000Z",
-                updated_at="2021-02-12T22:59:04.249Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="6026e2bc3a4653001c012104",
-                title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
-                url="https://mars.nasa.gov/news/8859/",
-                image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-                news_site="NASA",
-                summary="Technology will collect critical data about the harsh entry",
-                published_at="2021-02-12T20:19:00.000Z",
-                updated_at="2021-02-12T20:19:08.638Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-        ]
-    )
-    subscriber = Subscriber(week_day=5, ordering="published_at", email="mark@house.com")
-
-    formatted_message = formatter.format(subscriber)
-
-    assert (
-        formatted_message
-        == """
-Hello!
-Here are your cool space news!
-
-Sensors Prepare to Collect Data as Perseverance Enters Mars (https://mars.nasa.gov/news/8859/) at 2021-02-12T20:19:00.000Z
-Report: NASA’s only realistic path for humans on Mars is nuclear (https://arstechnica.com/science/2021/02/report-nasas-only-/) at 2021-02-12T20:56:59.000Z
-Despite its small size, Space Force plans (https://spacenews.com/despite-its-small-size-space-force-plans/) at 2021-02-12T22:59:04.000Z
-
-Sincerly,
-
-your Mailman!
-"""
-    )
-
-
-def test_message_formatter_format_random(shuffle_mock):
-    formatter = MessageFormatter(
-        [
-            Article(
-                article_id="6026ec1b3a4653001c012105",
-                title="Report: NASA’s only realistic path for humans on Mars is nuclear",
-                url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
-                image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
-                news_site="Arstechnica",
-                summary='"It\'s the kind of technology challenge that NASA was built."',
-                published_at="2021-02-12T20:56:59.000Z",
-                updated_at="2021-02-12T20:59:08.034Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="602708383a4653001c012106",
-                title="Despite its small size, Space Force plans",
-                url="https://spacenews.com/despite-its-small-size-space-force-plans/",
-                image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
-                news_site="SpaceNews",
-                summary="The Space Force is by far the smallest branch of the U.S. .",
-                published_at="2021-02-12T22:59:04.000Z",
-                updated_at="2021-02-12T22:59:04.249Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-            Article(
-                article_id="6026e2bc3a4653001c012104",
-                title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
-                url="https://mars.nasa.gov/news/8859/",
-                image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
-                news_site="NASA",
-                summary="Technology will collect critical data about the harsh entry",
-                published_at="2021-02-12T20:19:00.000Z",
-                updated_at="2021-02-12T20:19:08.638Z",
-                featured=False,
-                launches=[],
-                events=[],
-            ),
-        ]
-    )
-    subscriber = Subscriber(week_day=5, ordering="random", email="mark@house.com")
+@pytest.mark.parametrize(
+    "ordering,article_order",
+    (
+        ("title", [1, 0, 2]),
+        ("published_at", [2, 0, 1]),
+        ("random", [0, 2, 1]),
+    ),
+)
+def test_message_formatter_format_title(ordering, article_order, shuffle_mock):
+    articles = [
+        Article(
+            article_id="6026ec1b3a4653001c012105",
+            title="Report: NASA’s only realistic path for humans on Mars is nuclear",
+            url="https://arstechnica.com/science/2021/02/report-nasas-only-/",
+            image_url="https://cdn.arstechnica.net/wp-content/upload9255078_orig.jpg",
+            news_site="Arstechnica",
+            summary='"It\'s the kind of technology challenge that NASA was built."',
+            published_at="2021-02-12T20:56:59.000Z",
+            updated_at="2021-02-12T20:59:08.034Z",
+            featured=False,
+            launches=[],
+            events=[],
+        ),
+        Article(
+            article_id="602708383a4653001c012106",
+            title="Despite its small size, Space Force plans",
+            url="https://spacenews.com/despite-its-small-size-space-force-plans/",
+            image_url="https://spacenews.com/wp-content/uploads/2021/02/6428324.jpg",
+            news_site="SpaceNews",
+            summary="The Space Force is by far the smallest branch of the U.S. .",
+            published_at="2021-02-12T22:59:04.000Z",
+            updated_at="2021-02-12T22:59:04.249Z",
+            featured=False,
+            launches=[],
+            events=[],
+        ),
+        Article(
+            article_id="6026e2bc3a4653001c012104",
+            title="Sensors Prepare to Collect Data as Perseverance Enters Mars",
+            url="https://mars.nasa.gov/news/8859/",
+            image_url="https://mars.nasa.gov/system/news_i/8859_medli2_web_image.jpg",
+            news_site="NASA",
+            summary="Technology will collect critical data about the harsh entry",
+            published_at="2021-02-12T20:19:00.000Z",
+            updated_at="2021-02-12T20:19:08.638Z",
+            featured=False,
+            launches=[],
+            events=[],
+        ),
+    ]
+    formatter = MessageFormatter(articles)
+    subscriber = Subscriber(week_day=5, ordering=ordering, email="mark@house.com")
 
     with patch("mailer.main.shuffle", shuffle_mock):
         formatted_message = formatter.format(subscriber)
 
     assert (
         formatted_message
-        == """
+        == f"""
 Hello!
 Here are your cool space news!
 
-Report: NASA’s only realistic path for humans on Mars is nuclear (https://arstechnica.com/science/2021/02/report-nasas-only-/) at 2021-02-12T20:56:59.000Z
-Sensors Prepare to Collect Data as Perseverance Enters Mars (https://mars.nasa.gov/news/8859/) at 2021-02-12T20:19:00.000Z
-Despite its small size, Space Force plans (https://spacenews.com/despite-its-small-size-space-force-plans/) at 2021-02-12T22:59:04.000Z
+{articles[article_order[0]].title} ({articles[article_order[0]].url}) at {articles[article_order[0]].published_at}
+{articles[article_order[1]].title} ({articles[article_order[1]].url}) at {articles[article_order[1]].published_at}
+{articles[article_order[2]].title} ({articles[article_order[2]].url}) at {articles[article_order[2]].published_at}
 
 Sincerly,
 
